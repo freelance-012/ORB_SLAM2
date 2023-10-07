@@ -68,6 +68,7 @@ src/KeyFrameDatabase.cc
 src/Sim3Solver.cc
 src/Initializer.cc
 src/Viewer.cc
+src/feature_tracker.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -111,3 +112,6 @@ add_executable(mono_euroc
 Examples/Monocular/mono_euroc.cc)
 target_link_libraries(mono_euroc ${PROJECT_NAME})
 
+
+MESSAGE("sgx OpenCV_DIR: ${OpenCV_DIR}")
+MESSAGE("sgx Eigen_INCLUDE_DIR: ${EIGEN3_INCLUDE_DIR}")

@@ -206,6 +206,16 @@ private:
     cv::Mat mtcw;
     cv::Mat mRwc;
     cv::Mat mOw; //==mtwc
+
+public:
+    cv::Mat mImLeft;
+    std::vector<cv::Mat> mvImLeftPyr;
+
+    std::vector<cv::Point2f> mvpts;
+
+    std::vector<cv::KeyPoint> mvKeysExtra, mvKeysUnExtra;
+    std::vector<cv::Mat> mDescriptorsExtra;
+    void addKeyPoint(const cv::KeyPoint& kp, const cv::Mat& desc);
 };
 
 }// namespace ORB_SLAM

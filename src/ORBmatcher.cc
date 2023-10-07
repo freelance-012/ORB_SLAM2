@@ -29,6 +29,8 @@
 
 #include<stdint-gcc.h>
 
+#include "feature_tracker.hpp"
+
 using namespace std;
 
 namespace ORB_SLAM2
@@ -485,6 +487,17 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
         }
 
     }
+
+
+    // do LK
+    std::vector<cv::Point2f> vpts = F1.mvpts;
+    std::vector<bool> vbstatus;
+    FeatureTracker featureTracker(30, 0.01);
+    featureTracker.fbKltTracking(F1.mvImLeftPyr, F2.mvImLeftPyr, 15, 1, 30, 0.5, F1.mvpts, vpts, vbstatus);
+    
+
+    FusionFMwithLK(F1, F2, nmatches, vbPrevMatched, vMatchedDistance, vnMatches12, vnMatches21, rotHist, windowSize, vpts, vbstatus);
+
 
     if(mbCheckOrientation)
     {
@@ -1660,6 +1673,130 @@ int ORBmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b)
     }
 
     return dist;
+}
+
+
+int ORBmatcher::FusionFMwithLK(Frame &refFrame, Frame &curFrame, int& nmatches, vector<cv::Point2f> &vbPrevMatched, vector<int>& vMatchedDistance, vector<int> &vnMatches12, vector<int>& vnMatches21, vector<int>* rotHist, int windowSize, std::vector<cv::Point2f>& vpts, std::vector<bool>& vbstatus) {
+    const float factor = 1.0f/HISTO_LENGTH;
+
+    for(size_t i1=0; i1<refFrame.mvKeys.size(); ++i1) {
+        if(!vbstatus[i1]) {
+            // case1 or case 4
+            continue;
+        }
+
+        if(vnMatches12[i1] != -1) {
+            // case2
+            curFrame.mvKeys[vnMatches12[i1]].pt;
+            vpts[i1];
+            double pxdist = cv::norm(curFrame.mvKeys[vnMatches12[i1]].pt - vpts[i1]);
+
+            if( pxdist > 2.0 ) { // LK与FM跟踪的点距离太大，不可靠 删去
+                std::cout << curFrame.mvKeys[vnMatches12[i1]].pt << vpts[i1] << std::endl;
+                std::cout << "pxdist = " << pxdist << std::endl;
+                std::cout << ((pxdist > 2.0) ? "True" : "False") << std::endl;
+                // std::cout << pxdist - 2.0 << std::endl;
+
+                cv::DMatch match;
+                match.queryIdx = 0;
+                match.trainIdx = 0;
+
+                cv::Mat outImg;
+                cv::drawMatches(refFrame.mImLeft, {refFrame.mvKeysUn[i1]}, curFrame.mImLeft, 
+                    {curFrame.mvKeysUn[vnMatches12[i1]]}, 
+                    {match}, outImg, cv::Scalar(0, 255, 0));
+                cv::imwrite("outImg_FM.png", outImg);
+
+                cv::DMatch match2;
+                match2.queryIdx = 0;
+                match2.trainIdx = 0;
+                cv::drawMatches(refFrame.mImLeft, {refFrame.mvKeysUn[i1]}, curFrame.mImLeft, 
+                    {cv::KeyPoint(vpts[i1], 7)}, 
+                    {match2}, outImg, cv::Scalar(0, 255, 0));
+
+                cv::imwrite("outImg_LK.png", outImg);
+
+                vnMatches21[vnMatches12[i1]]=-1;
+                vMatchedDistance[vnMatches12[i1]]=-1;
+                vnMatches12[i1]=-1;
+                nmatches--;
+            }
+            continue;
+        }
+
+        // case3
+        vector<size_t> vIndices2 = curFrame.GetFeaturesInArea(vpts[i1].x, vpts[i1].y, 4);
+
+        if(vIndices2.empty())
+            continue;
+
+        cv::Mat d1 = refFrame.mDescriptors.row(i1);
+
+        int bestDist = INT_MAX;
+        int bestDist2 = INT_MAX;
+        int bestIdx2 = -1;
+
+        for(size_t i2=0; i2<vIndices2.size(); ++i2) {
+            
+            cv::Mat d2 = curFrame.mDescriptors.row(i2);
+
+            int dist = DescriptorDistance(d1,d2);
+
+            if(vMatchedDistance[i2]<=dist)
+                continue;
+
+              
+            if(dist<bestDist)
+            {
+                bestDist2=bestDist;
+                bestDist=dist;
+                bestIdx2=i2;
+            }
+            else if(dist<bestDist2)
+            {
+                bestDist2=dist;
+            }  
+        }
+
+        // step1
+        if(bestDist<=TH_LOW && bestDist<(float)bestDist2*mfNNratio)
+        {
+            if(vnMatches21[bestIdx2]>=0) 
+            {
+                // 若当前点已经对应到ref中其他点了，则删掉，与现在这个对应。因为在前面匹配的时候已经判断过vMatchedDistance了，与现在这个的距离更小。
+                vnMatches12[vnMatches21[bestIdx2]]=-1;
+                nmatches--;
+            }
+            vnMatches12[i1]=bestIdx2;
+            vnMatches21[bestIdx2]=i1;
+            vMatchedDistance[bestIdx2]=bestDist;
+            nmatches++;
+
+            if(mbCheckOrientation)
+            {
+                float rot = refFrame.mvKeysUn[i1].angle-curFrame.mvKeysUn[bestIdx2].angle;
+                if(rot<0.0)
+                    rot+=360.0f;
+                int bin = round(rot*factor);
+                if(bin==HISTO_LENGTH)
+                    bin=0;
+                assert(bin>=0 && bin<HISTO_LENGTH);
+                rotHist[bin].push_back(i1);
+            }
+        }
+        else {
+            // step2  use vpts[i] add a new keypoint to curFrame
+            vpts[i1];
+            refFrame.mvKeysUn[i1].octave;
+            // bool ret = ORBextractor::AddNewKeyPoint();
+
+            ORBextractor extractor(2000,1.2,8,20,12);
+            bool ret = extractor.AddNewKeyPoint(vpts[i]);
+        }
+        
+    }
+
+    return nmatches;
 }
 
 } //namespace ORB_SLAM

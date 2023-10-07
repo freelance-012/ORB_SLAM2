@@ -47,8 +47,13 @@ Frame::Frame(const Frame &frame)
      mpReferenceKF(frame.mpReferenceKF), mnScaleLevels(frame.mnScaleLevels),
      mfScaleFactor(frame.mfScaleFactor), mfLogScaleFactor(frame.mfLogScaleFactor),
      mvScaleFactors(frame.mvScaleFactors), mvInvScaleFactors(frame.mvInvScaleFactors),
-     mvLevelSigma2(frame.mvLevelSigma2), mvInvLevelSigma2(frame.mvInvLevelSigma2)
+     mvLevelSigma2(frame.mvLevelSigma2), mvInvLevelSigma2(frame.mvInvLevelSigma2),
+     mImLeft(frame.mImLeft.clone()),
+     mvpts(frame.mvpts)
 {
+    
+    cv::buildOpticalFlowPyramid(mImLeft, mvImLeftPyr, cv::Size(15,15), 3);
+
     for(int i=0;i<FRAME_GRID_COLS;i++)
         for(int j=0; j<FRAME_GRID_ROWS; j++)
             mGrid[i][j]=frame.mGrid[i][j];
@@ -173,7 +178,8 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 
 Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
     :mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
-     mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
+     mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
+     mImLeft(imGray.clone()), mvpts(std::vector<cv::Point2f>())
 {
     // Frame ID
     mnId=nNextId++;
@@ -187,6 +193,9 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     mvLevelSigma2 = mpORBextractorLeft->GetScaleSigmaSquares();
     mvInvLevelSigma2 = mpORBextractorLeft->GetInverseScaleSigmaSquares();
 
+
+    cv::buildOpticalFlowPyramid(mImLeft, mvImLeftPyr, cv::Size(15,15), 3);
+
     // ORB extraction
     ExtractORB(0,imGray);
 
@@ -194,6 +203,8 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
 
     if(mvKeys.empty())
         return;
+
+    cv::KeyPoint::convert(mvKeys, mvpts);
 
     UndistortKeyPoints();
 
@@ -242,6 +253,18 @@ void Frame::AssignFeaturesToGrid()
         if(PosInGrid(kp,nGridPosX,nGridPosY))
             mGrid[nGridPosX][nGridPosY].push_back(i);
     }
+}
+
+void Frame::addKeyPoint(const cv::KeyPoint &kp, const cv::Mat &desc)
+{
+    mvKeys.push_back(kp);
+    UndistortKeyPoints();
+    mDescriptors.push_back(desc);
+
+    N = mvKeys.size();
+
+    cv::KeyPoint::convert(mvKeys, mvpts);
+    
 }
 
 void Frame::ExtractORB(int flag, const cv::Mat &im)

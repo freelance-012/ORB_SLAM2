@@ -108,6 +108,10 @@ protected:
     std::vector<float> mvInvScaleFactor;    
     std::vector<float> mvLevelSigma2;
     std::vector<float> mvInvLevelSigma2;
+
+public:
+    bool AddNewKeyPoint(const cv::Mat &image, const cv::Point2f& pt);
+    bool isCorner(const cv::Mat &image, const cv::Point2f& pt);
 };
 
 } //namespace ORB_SLAM

@@ -1031,6 +1031,22 @@ void ORBextractor::ComputeKeyPointsOld(std::vector<std::vector<KeyPoint> > &allK
         computeOrientation(mvImagePyramid[level], allKeypoints[level], umax);
 }
 
+bool ORBextractor::AddNewKeyPoint(const cv::Mat &image, const cv::Point2f &pt)
+{
+    if(!isCorner(image, pt)) {
+        return false;
+    }
+
+
+
+    return false;
+}
+
+bool ORBextractor::isCorner(const cv::Mat &image, const cv::Point2f &pt) {
+
+    return false;
+}
+
 static void computeDescriptors(const Mat& image, vector<KeyPoint>& keypoints, Mat& descriptors,
                                const vector<Point>& pattern)
 {

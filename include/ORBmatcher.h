@@ -99,6 +99,9 @@ protected:
 
     float mfNNratio;
     bool mbCheckOrientation;
+
+
+    int FusionFMwithLK(Frame &refFrame, Frame &curFrame, int& nmatches, vector<cv::Point2f> &vbPrevMatched, vector<int>& vMatchedDistance, vector<int> &vnMatches12, vector<int>& vnMatches21, vector<int>* rotHist, int windowSize, std::vector<cv::Point2f>& vpts, std::vector<bool>& vbstatus);
 };
 
 }// namespace ORB_SLAM
