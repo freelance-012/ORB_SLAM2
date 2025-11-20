@@ -24,6 +24,8 @@
 #include<opencv2/core/core.hpp>
 #include<opencv2/features2d/features2d.hpp>
 
+#include <glog/logging.h>
+
 #include"ORBmatcher.h"
 #include"FrameDrawer.h"
 #include"Converter.h"
@@ -34,6 +36,7 @@
 #include"PnPsolver.h"
 
 #include "utils/Types.h"
+#include "utils/Profiler.h"
 
 #include<iostream>
 
@@ -44,6 +47,9 @@ using namespace std;
 
 namespace ORB_SLAM2
 {
+
+static bool is_print = true;
+static std::stringstream ss;
 
 Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Map *pMap, KeyFrameDatabase* pKFDB, const string &strSettingPath, const int sensor):
     mState(NO_IMAGES_YET), mSensor(sensor), mbOnlyTracking(false), mbVO(false), mpORBVocabulary(pVoc),
@@ -263,7 +269,12 @@ VoResultPtr Tracking::TrackMono(const cv::Mat &im, const double &timestamp)
                 }
             }
         }
-        pVoResult->nInliers = nInliers;
+
+        ss << __func__ << " id: " << mCurrentFrame.mnId << ", npts3d: " << mCurrentFrame.GetNumPoints3D() << std::endl;
+        Profiler::Print(ss.str(), is_print);
+        ss.str("");
+
+        pVoResult->nInliers = mCurrentFrame.GetNumPoints3D();
     }
 
 
@@ -539,6 +550,10 @@ void Tracking::Track()
         mlbLost.push_back(mState==LOST);
     }
 
+    ss << __func__ << " id: " << mCurrentFrame.mnId << ", npts3d: " << mCurrentFrame.GetNumPoints3D() << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
+
 }
 
 
@@ -719,6 +734,10 @@ void Tracking::CreateInitialMapMonocular()
     // Bundle Adjustment
     cout << "New Map created with " << mpMap->MapPointsInMap() << " points" << endl;
 
+    ss << __func__ << " id: " << mCurrentFrame.mnId << ", npts3d: " << mCurrentFrame.GetNumPoints3D() << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
+
     Optimizer::GlobalBundleAdjustemnt(mpMap,20);
 
     // Set median depth to 1
@@ -792,6 +811,10 @@ void Tracking::CheckReplacedInLastFrame()
 
 bool Tracking::TrackReferenceKeyFrame()
 {
+    ss << __func__ << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
+
     // Compute Bag of Words vector
     mCurrentFrame.ComputeBoW();
 
@@ -807,6 +830,10 @@ bool Tracking::TrackReferenceKeyFrame()
 
     mCurrentFrame.mvpMapPoints = vpMapPointMatches;
     mCurrentFrame.SetPose(mLastFrame.mTcw);
+
+    ss << __func__ << " id: " << mCurrentFrame.mnId << ", npts3d: " << mCurrentFrame.GetNumPoints3D() << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
 
     Optimizer::PoseOptimization(&mCurrentFrame);
 
@@ -830,6 +857,10 @@ bool Tracking::TrackReferenceKeyFrame()
                 nmatchesMap++;
         }
     }
+
+    ss << __func__ << " id: " << mCurrentFrame.mnId << ", npts3d: " << mCurrentFrame.GetNumPoints3D() << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
 
     return nmatchesMap>=10;
 }
@@ -902,6 +933,10 @@ void Tracking::UpdateLastFrame()
 
 bool Tracking::TrackWithMotionModel()
 {
+    ss << __func__ << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
+
     ORBmatcher matcher(0.9,true);
 
     // Update last frame pose according to its reference keyframe
@@ -926,6 +961,10 @@ bool Tracking::TrackWithMotionModel()
         fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
         nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,2*th,mSensor==System::MONOCULAR);
     }
+
+    ss << __func__ << " id: " << mCurrentFrame.mnId << ", npts3d: " << mCurrentFrame.GetNumPoints3D() << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
 
     if(nmatches<20)
         return false;
@@ -954,6 +993,10 @@ bool Tracking::TrackWithMotionModel()
         }
     }    
 
+    ss << __func__ << " id: " << mCurrentFrame.mnId << ", npts3d: " << mCurrentFrame.GetNumPoints3D() << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
+
     if(mbOnlyTracking)
     {
         mbVO = nmatchesMap<10;
@@ -965,6 +1008,10 @@ bool Tracking::TrackWithMotionModel()
 
 bool Tracking::TrackLocalMap()
 {
+    ss << __func__ << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
+
     // We have an estimation of the camera pose and some map points tracked in the frame.
     // We retrieve the local map and try to find matches to points in the local map.
 
@@ -997,6 +1044,10 @@ bool Tracking::TrackLocalMap()
 
         }
     }
+
+    ss << __func__ << " id: " << mCurrentFrame.mnId << ", npts3d: " << mCurrentFrame.GetNumPoints3D() << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
 
     // Decide if the tracking was succesful
     // More restrictive if there was a relocalization recently
@@ -1178,6 +1229,10 @@ void Tracking::CreateNewKeyFrame()
 
 void Tracking::SearchLocalPoints()
 {
+    ss << __func__ << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
+
     // Do not search map points already matched
     for(vector<MapPoint*>::iterator vit=mCurrentFrame.mvpMapPoints.begin(), vend=mCurrentFrame.mvpMapPoints.end(); vit!=vend; vit++)
     {
@@ -1226,6 +1281,10 @@ void Tracking::SearchLocalPoints()
             th=5;
         matcher.SearchByProjection(mCurrentFrame,mvpLocalMapPoints,th);
     }
+
+    ss << __func__ << " id: " << mCurrentFrame.mnId << ", npts3d: " << mCurrentFrame.GetNumPoints3D() << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
 }
 
 void Tracking::UpdateLocalMap()

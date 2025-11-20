@@ -286,6 +286,24 @@ MapPoint* KeyFrame::GetMapPoint(const size_t &idx)
     return mvpMapPoints[idx];
 }
 
+int KeyFrame::GetNumPoints3D()
+{
+    int npts3d = 0;
+    for(int i=0; i<N; i++)
+    {
+        if(mvpMapPoints[i])
+        {
+            MapPoint* pMP = mvpMapPoints[i];
+            if(!pMP->isBad())
+            {
+                npts3d++;
+            }
+        }
+    }
+
+    return npts3d;
+}
+
 void KeyFrame::UpdateConnections()
 {
     map<KeyFrame*,int> KFcounter;

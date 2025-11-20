@@ -31,12 +31,15 @@
 #include<Eigen/StdVector>
 
 #include "Converter.h"
+#include "utils/Profiler.h"
 
 #include<mutex>
 
 namespace ORB_SLAM2
 {
 
+static bool is_print = true;
+static std::stringstream ss;
 
 void Optimizer::GlobalBundleAdjustemnt(Map* pMap, int nIterations, bool* pbStopFlag, const unsigned long nLoopKF, const bool bRobust)
 {
@@ -452,6 +455,10 @@ int Optimizer::PoseOptimization(Frame *pFrame)
 
 void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap)
 {    
+    ss << __func__ << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
+
     // Local KeyFrames: First Breath Search from Current Keyframe
     list<KeyFrame*> lLocalKeyFrames;
 

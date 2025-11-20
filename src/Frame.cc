@@ -679,4 +679,21 @@ cv::Mat Frame::UnprojectStereo(const int &i)
         return cv::Mat();
 }
 
+int Frame::GetNumPoints3D()
+{
+    int npts3d = 0;
+    for(int i=0; i<N; i++)
+    {
+        if(mvpMapPoints[i])
+        {
+            MapPoint* pMP = mvpMapPoints[i];
+            if(!pMP->isBad())
+            {
+                npts3d++;
+            }
+        }
+    }
+
+    return npts3d;
+}
 } //namespace ORB_SLAM

@@ -22,11 +22,15 @@
 #include "LoopClosing.h"
 #include "ORBmatcher.h"
 #include "Optimizer.h"
+#include "utils/Profiler.h"
 
 #include<mutex>
 
 namespace ORB_SLAM2
 {
+
+static bool is_print = true;
+static std::stringstream ss;
 
 LocalMapping::LocalMapping(Map *pMap, const float bMonocular):
     mbMonocular(bMonocular), mbResetRequested(false), mbFinishRequested(false), mbFinished(true), mpMap(pMap),
@@ -78,7 +82,13 @@ void LocalMapping::Run()
             {
                 // Local BA
                 if(mpMap->KeyFramesInMap()>2)
+                {
                     Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpMap);
+
+                    ss << " id: " << mpCurrentKeyFrame->mnFrameId << ", npts3d: " << mpCurrentKeyFrame->GetNumPoints3D() << std::endl;
+                    Profiler::Print(ss.str(), is_print);
+                    ss.str("");
+                }
 
                 // Check redundant local Keyframes
                 KeyFrameCulling();
@@ -206,6 +216,10 @@ void LocalMapping::MapPointCulling()
 
 void LocalMapping::CreateNewMapPoints()
 {
+    ss << __func__ << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
+
     // Retrieve neighbor keyframes in covisibility graph
     int nn = 10;
     if(mbMonocular)
@@ -449,10 +463,18 @@ void LocalMapping::CreateNewMapPoints()
             nnew++;
         }
     }
+
+    ss << " id: " << mpCurrentKeyFrame->mnFrameId << ", npts3d: " << mpCurrentKeyFrame->GetNumPoints3D() << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
 }
 
 void LocalMapping::SearchInNeighbors()
 {
+    ss << __func__ << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
+
     // Retrieve neighbor keyframes
     int nn = 10;
     if(mbMonocular)
@@ -531,6 +553,10 @@ void LocalMapping::SearchInNeighbors()
 
     // Update connections in covisibility graph
     mpCurrentKeyFrame->UpdateConnections();
+
+    ss << " id: " << mpCurrentKeyFrame->mnFrameId << ", npts3d: " << mpCurrentKeyFrame->GetNumPoints3D() << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
 }
 
 cv::Mat LocalMapping::ComputeF12(KeyFrame *&pKF1, KeyFrame *&pKF2)
