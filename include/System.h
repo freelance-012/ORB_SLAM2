@@ -36,6 +36,7 @@
 #include "KeyFrameDatabase.h"
 #include "ORBVocabulary.h"
 #include "Viewer.h"
+#include "utils/Types.h"
 
 namespace ORB_SLAM2
 {
@@ -77,6 +78,7 @@ public:
     // Input images: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
     // Returns the camera pose (empty if tracking fails).
     cv::Mat TrackMonocular(const cv::Mat &im, const double &timestamp);
+    VoResultPtr TrackMono(const cv::Mat &im, const double &timestamp);
 
     // This stops local mapping thread (map building) and performs only camera tracking.
     void ActivateLocalizationMode();
@@ -112,6 +114,8 @@ public:
     // Call first Shutdown()
     // See format details at: http://www.cvlibs.net/datasets/kitti/eval_odometry.php
     void SaveTrajectoryKITTI(const string &filename);
+
+    void LogVoResult(const VoResultPtr &vo_result);
 
     // TODO: Save/Load functions
     // SaveMap(const string &filename);
@@ -175,6 +179,9 @@ private:
     std::vector<MapPoint*> mTrackedMapPoints;
     std::vector<cv::KeyPoint> mTrackedKeyPointsUn;
     std::mutex mMutexState;
+
+    // Log vo result
+    std::ofstream file_vo;
 };
 
 }// namespace ORB_SLAM

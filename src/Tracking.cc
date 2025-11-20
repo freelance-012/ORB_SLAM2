@@ -33,6 +33,8 @@
 #include"Optimizer.h"
 #include"PnPsolver.h"
 
+#include "utils/Types.h"
+
 #include<iostream>
 
 #include<mutex>
@@ -46,7 +48,7 @@ namespace ORB_SLAM2
 Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Map *pMap, KeyFrameDatabase* pKFDB, const string &strSettingPath, const int sensor):
     mState(NO_IMAGES_YET), mSensor(sensor), mbOnlyTracking(false), mbVO(false), mpORBVocabulary(pVoc),
     mpKeyFrameDB(pKFDB), mpInitializer(static_cast<Initializer*>(NULL)), mpSystem(pSys), mpViewer(NULL),
-    mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mpMap(pMap), mnLastRelocFrameId(0)
+    mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mpMap(pMap), mnLastRelocFrameId(0), mnResetCount(0)
 {
     // Load camera parameters from settings file
 
@@ -234,6 +236,40 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const d
     return mCurrentFrame.mTcw.clone();
 }
 
+VoResultPtr Tracking::TrackMono(const cv::Mat &im, const double &timestamp)
+{
+    GrabImageMonocular(im, timestamp);
+
+    auto pVoResult = std::make_shared<VoResult>();
+    pVoResult->bOK = mState == OK;
+
+    if(pVoResult->bOK)
+    {
+        pVoResult->Timestamp = mCurrentFrame.mTimeStamp;
+        pVoResult->Rwc = Converter::toMatrix3d(mCurrentFrame.GetRotationInverse());
+        pVoResult->Pwc = Converter::toVector3d(mCurrentFrame.GetCameraCenter());
+        pVoResult->bIsKeyframe = (mpReferenceKF->mnFrameId == mCurrentFrame.mnId);
+        pVoResult->nResetCount = mnResetCount;
+
+        int nInliers = 0;
+        for(int i=0; i<mCurrentFrame.N; i++)
+        {
+            if(mCurrentFrame.mvpMapPoints[i])
+            {
+                MapPoint* pMP = mCurrentFrame.mvpMapPoints[i];
+                if(!pMP->isBad())
+                {
+                    nInliers++;
+                }
+            }
+        }
+        pVoResult->nInliers = nInliers;
+    }
+
+
+
+    return pVoResult;
+}
 
 cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
 {
@@ -1547,6 +1583,8 @@ void Tracking::Reset()
 
     if(mpViewer)
         mpViewer->Release();
+
+    mnResetCount++;
 }
 
 void Tracking::ChangeCalibration(const string &strSettingPath)

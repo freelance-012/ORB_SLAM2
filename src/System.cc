@@ -22,6 +22,10 @@
 
 #include "System.h"
 #include "Converter.h"
+
+#include "utils/Types.h"
+#include "utils/Geometry.hpp"
+
 #include <thread>
 #include <pangolin/pangolin.h>
 #include <iomanip>
@@ -111,6 +115,16 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
 
     mpLoopCloser->SetTracker(mpTracker);
     mpLoopCloser->SetLocalMapper(mpLocalMapper);
+
+    const std::string log_vo_path = "vo_orb_slam2.txt";
+    file_vo.open(log_vo_path, std::ios::trunc);
+    if(!file_vo.is_open())
+    {
+        cerr << "Falied to open at: " << log_vo_path << endl;
+        exit(-1);
+    }
+    file_vo.precision(17);
+
 }
 
 cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp)
@@ -265,6 +279,63 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
     mTrackedKeyPointsUn = mpTracker->mCurrentFrame.mvKeysUn;
 
     return Tcw;
+}
+
+VoResultPtr System::TrackMono(const cv::Mat &im, const double &timestamp)
+{
+    if(mSensor!=MONOCULAR)
+    {
+        cerr << "ERROR: you called TrackMonocular but input sensor was not set to Monocular." << endl;
+        exit(-1);
+    }
+
+    // Check mode change
+    {
+        unique_lock<mutex> lock(mMutexMode);
+        if(mbActivateLocalizationMode)
+        {
+            mpLocalMapper->RequestStop();
+
+            // Wait until Local Mapping has effectively stopped
+            while(!mpLocalMapper->isStopped())
+            {
+                usleep(1000);
+            }
+
+            mpTracker->InformOnlyTracking(true);
+            mbActivateLocalizationMode = false;
+        }
+        if(mbDeactivateLocalizationMode)
+        {
+            mpTracker->InformOnlyTracking(false);
+            mpLocalMapper->Release();
+            mbDeactivateLocalizationMode = false;
+        }
+    }
+
+    // Check reset
+    {
+    unique_lock<mutex> lock(mMutexReset);
+    if(mbReset)
+    {
+        mpTracker->Reset();
+        mbReset = false;
+    }
+    }
+
+    const auto pVoResult = mpTracker->TrackMono(im,timestamp);
+
+    if(pVoResult && pVoResult->bOK)
+    {
+        LogVoResult(pVoResult);
+    }
+
+    unique_lock<mutex> lock2(mMutexState);
+    mTrackingState = mpTracker->mState;
+    mTrackedMapPoints = mpTracker->mCurrentFrame.mvpMapPoints;
+    mTrackedKeyPointsUn = mpTracker->mCurrentFrame.mvKeysUn;
+
+    return pVoResult;
 }
 
 void System::ActivateLocalizationMode()
@@ -475,6 +546,18 @@ int System::GetTrackingState()
 {
     unique_lock<mutex> lock(mMutexState);
     return mTrackingState;
+}
+
+void System::LogVoResult(const VoResultPtr &vo_result)
+{
+    Eigen::Vector3d P = vo_result->Pwc;
+    Eigen::Vector3d euler = Geometry::R2YPR(vo_result->Rwc);
+
+    file_vo << vo_result->Timestamp << " " << vo_result->nInliers << " ";
+    file_vo << P.x() << " " << P.y() << " " << P.z() << " ";
+    file_vo << euler.x() << " " << euler.y() << " " << euler.z() << " ";
+    file_vo << vo_result->bIsKeyframe << " " << vo_result->nResetCount;
+    file_vo << std::endl;
 }
 
 vector<MapPoint*> System::GetTrackedMapPoints()
