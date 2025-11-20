@@ -28,12 +28,17 @@
 
 #include "ORBmatcher.h"
 
+#include "utils/Profiler.h"
+
 #include<mutex>
 #include<thread>
 
 
 namespace ORB_SLAM2
 {
+
+static bool is_print = false;
+static std::stringstream ss;
 
 LoopClosing::LoopClosing(Map *pMap, KeyFrameDatabase *pDB, ORBVocabulary *pVoc, const bool bFixScale):
     mbResetRequested(false), mbFinishRequested(false), mbFinished(true), mpMap(pMap),
@@ -102,6 +107,10 @@ bool LoopClosing::CheckNewKeyFrames()
 
 bool LoopClosing::DetectLoop()
 {
+    ss << __func__ << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
+    
     {
         unique_lock<mutex> lock(mMutexLoopQueue);
         mpCurrentKF = mlpLoopKeyFrameQueue.front();
@@ -139,6 +148,10 @@ bool LoopClosing::DetectLoop()
 
     // Query the database imposing the minimum score
     vector<KeyFrame*> vpCandidateKFs = mpKeyFrameDB->DetectLoopCandidates(mpCurrentKF, minScore);
+    ss << "vpCandidateKFs.size: " << vpCandidateKFs.size() << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
+    
 
     // If there are no loop candidates, just add new keyframe and return false
     if(vpCandidateKFs.empty())
@@ -213,6 +226,10 @@ bool LoopClosing::DetectLoop()
 
     // Add Current Keyframe to database
     mpKeyFrameDB->add(mpCurrentKF);
+    ss << "mvpEnoughConsistentCandidates.size: " << mvpEnoughConsistentCandidates.size() << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
+    
 
     if(mvpEnoughConsistentCandidates.empty())
     {
@@ -230,6 +247,10 @@ bool LoopClosing::DetectLoop()
 
 bool LoopClosing::ComputeSim3()
 {
+    ss << __func__ << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
+    
     // For each consistent loop candidate we try to compute a Sim3
 
     const int nInitialCandidates = mvpEnoughConsistentCandidates.size();
@@ -278,6 +299,10 @@ bool LoopClosing::ComputeSim3()
 
         nCandidates++;
     }
+    ss << "nCandidates: " << nCandidates << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
+    
 
     bool bMatch = false;
 
@@ -324,6 +349,10 @@ bool LoopClosing::ComputeSim3()
 
                 g2o::Sim3 gScm(Converter::toMatrix3d(R),Converter::toVector3d(t),s);
                 const int nInliers = Optimizer::OptimizeSim3(mpCurrentKF, pKF, vpMapPointMatches, gScm, 10, mbFixScale);
+                ss << "\tnInliers: " << nInliers << std::endl;
+                Profiler::Print(ss.str(), is_print);
+                ss.str("");
+                
 
                 // If optimization is succesful stop ransacs and continue
                 if(nInliers>=20)
@@ -341,6 +370,10 @@ bool LoopClosing::ComputeSim3()
         }
     }
 
+    ss << "bMatch: " << bMatch << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
+    
     if(!bMatch)
     {
         for(int i=0; i<nInitialCandidates; i++)
@@ -381,6 +414,10 @@ bool LoopClosing::ComputeSim3()
         if(mvpCurrentMatchedPoints[i])
             nTotalMatches++;
     }
+
+    ss << "nTotalMatches: " << nTotalMatches << std::endl;
+    Profiler::Print(ss.str(), is_print);
+    ss.str("");
 
     if(nTotalMatches>=40)
     {
