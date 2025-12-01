@@ -32,6 +32,8 @@
 
 #include "Converter.h"
 #include "utils/Profiler.h"
+#include "utils/Geometry.hpp"
+#include "optimization_lab/core/pose_only_optimizer.h"
 
 #include<mutex>
 
@@ -237,6 +239,13 @@ void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<M
         }
     }
 
+}
+
+
+int Optimizer::PoseOptimizationWithCeres(Frame *pFrame)
+{
+    // TODO
+    return 0;
 }
 
 int Optimizer::PoseOptimization(Frame *pFrame)

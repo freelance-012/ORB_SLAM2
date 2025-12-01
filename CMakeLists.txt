@@ -39,6 +39,7 @@ endif()
 find_package(glog REQUIRED)
 find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
+find_package(Ceres REQUIRED)
 
 add_subdirectory(Thirdparty/optimization_lab)
 
@@ -80,6 +81,7 @@ ${Pangolin_LIBRARIES}
 ${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 glog::glog
+${CERES_LIBRARIES}
 ${PROJECT_SOURCE_DIR}/Thirdparty/optimization_lab/lib/liboptimization.so
 )
 
