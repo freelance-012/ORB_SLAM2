@@ -1,0 +1,3 @@
+[submodule "Thirdparty/optimization_lab"]
+	path = Thirdparty/optimization_lab
+	url = git@github.com:freelance-012/optimization_lab.git
